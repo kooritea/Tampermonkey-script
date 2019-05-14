@@ -14,6 +14,7 @@
     function init(){
         $("#topic_list tr .download-arrow").each(function(){
             $(this).attr('href',"")
+            $(this).attr('title',"下载种子")
             let url = $(this).parent().prev().children("a").attr("href")
             $(this).attr("onclick","return false")
             $(this).click(function(){
@@ -21,6 +22,7 @@
                 return false
             })
         })
+        $("#topic_list tr:eq(0) th:eq(3)").text("下载种子")
     }
     function Download(url){
         $.get(url,function(data){
