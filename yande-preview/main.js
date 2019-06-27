@@ -30,8 +30,7 @@
         if(xhr.readyState === 4){
           if (xhr.status === 200) {
             try{
-              let sample = xhr.responseText.match(/<img(.*?)id="image"(.*?)src="(.*?)"(.*?)>/)[3]
-              let large = sample.replace(/sample/,"image")
+              let large = xhr.responseText.match(/<a(.*?)class="highres-show"(.*?)href="(.*?)"(.*?)>/)[3]
               reslove(large)
             }
             catch(e){
