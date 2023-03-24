@@ -67,7 +67,7 @@
         return
       }
       if(isVue3){
-        if (unsafeWindow.__VUE_DEVTOOLS_GLOBAL_HOOK__.enabled === false) {
+        if (!unsafeWindow.__VUE_DEVTOOLS_GLOBAL_HOOK__.enabled) {
           unsafeWindow.__VUE_DEVTOOLS_GLOBAL_HOOK__.apps.push({
             app: vue,
             version: vue.version,
