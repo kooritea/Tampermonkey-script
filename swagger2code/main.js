@@ -88,14 +88,14 @@
     let paramsComment = ''
     if (Array.isArray(meta.params) && meta.params.length > 0 && meta.params.length < 5) {
       for (const param of meta.params) {
-        paramsComment += `\n  * ${param.required ? '@requires ' : ''}@param {${param.schema.type}} params.${param.name} - ${param.description}`
+        paramsComment += `\n  * ${param.required ? '@required ' : ''}@param {${param.schema.type}} params.${param.name} - ${param.description}`
       }
     }
     let bodyComment = ''
     if (Array.isArray(meta.data) && meta.data.length > 0) {
       if (meta.data.length < 5) {
         for (const item of meta.data) {
-          bodyComment += `\n  * ${item.required ? '@requires ' : ''}@param {${item.type}} data.${item.name} - ${item.description}`
+          bodyComment += `\n  * ${item.required ? '@required ' : ''}@param {${item.type}} data.${item.name} - ${item.description}`
         }
       } else {
         bodyComment += `\n  * @param {${meta.dataRef}} data`
