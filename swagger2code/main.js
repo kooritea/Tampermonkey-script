@@ -84,14 +84,26 @@
     if (meta.tags) {
       comment += '\n  * ' + meta.tags.join('、')
     }
+
     let paramsComment = ''
     if (Array.isArray(meta.params) && meta.params.length > 0 && meta.params.length < 5) {
       for (const param of meta.params) {
-        paramsComment += `\n  * ${param.required ? '@requires ' : ''}@param {${param.schema.type}} ${param.name} - ${param.description}`
+        paramsComment += `\n  * ${param.required ? '@requires ' : ''}@param {${param.schema.type}} params.${param.name} - ${param.description}`
       }
     }
+    let bodyComment = ''
+    if (Array.isArray(meta.data) && meta.data.length > 0) {
+      if (meta.data.length < 5) {
+        for (const item of meta.data) {
+          bodyComment += `\n  * ${item.required ? '@requires ' : ''}@param {${item.type}} data.${item.name} - ${item.description}`
+        }
+      } else {
+        bodyComment += `\n  * @param {${meta.dataRef}} data`
+      }
+    }
+    const link = `\n  * {@link ${location.origin}${location.pathname}#/${meta.moduleName}/${meta.tags ? (meta.tags[0] + '/') : ''}${meta.operationId}}`
     return `
-/**${comment}${paramsComment}
+/**${comment}${paramsComment}${bodyComment}${link}
   */
 export function ${meta.apiName}(${functionParams.join(', ')}) {
   return request({
@@ -122,6 +134,8 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
             dataRef = dataRef.slice(dataRef.lastIndexOf('/') + 1)
           }
           metas.push({
+            moduleName: module.name,
+            operationId: item.operationId,
             apiName: useTranHandler('name', pathToApiName(_path)),
             path: useTranHandler('path', _path),
             name: item.summary,
@@ -130,9 +144,11 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
               return item.in === 'query'
             }),
             method,
+            dataRef,
             data: schemas[dataRef] ? Object.keys(schemas[dataRef].properties).map((key) => {
               return {
                 ...schemas[dataRef].properties[key],
+                required: schemas[dataRef].required?.includes(key) || false,
                 name: key
               }
             }) : [],
