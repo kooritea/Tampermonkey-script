@@ -101,7 +101,7 @@
         bodyComment += `\n  * @param {${meta.dataRef}} data`
       }
     }
-    const link = `\n  * {@link ${location.origin}${location.pathname}#/${meta.moduleName}/${meta.tags ? (meta.tags[0] + '/') : ''}${meta.operationId}}`
+    const link = `\n  * @link ${location.origin}${location.pathname}#/${meta.moduleName}/${meta.tags ? (meta.tags[0] + '/') : ''}${meta.operationId}`
     return `
 /**${comment}${paramsComment}${bodyComment}${link}
   */
