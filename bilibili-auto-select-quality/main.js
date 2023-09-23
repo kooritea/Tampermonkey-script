@@ -13,20 +13,21 @@
 (function() {
     'use strict';
     const timer = setInterval(()=>{
-        let videoDom = document.querySelector("#live-player");
+        let videoDom = document.querySelector(".live-player-mounter");
         if(videoDom){
             videoDom.dispatchEvent(new Event("mousemove"));
             let quality = document.querySelector(".quality-wrap");
             quality.dispatchEvent(new Event("mouseenter"));
             setTimeout(()=>{
                 if (
-                    document.querySelector(".quality-it.selected") !== document.querySelector(".quality-it")
+                    document.querySelector(".list-it.selected") !== document.querySelector(".list-it")
                 ) {
-                    let list = document.querySelectorAll(".quality-it");
+                    let list = document.querySelectorAll(".list-it");
                     list[0].click();
                 }
                 quality.dispatchEvent(new Event("mouseleave"))
                 clearInterval(timer);
+                console.log("清晰度设置已完成")
             },1000)
         }
         if(document.querySelector('.bui-select-item')){
