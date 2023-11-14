@@ -32,7 +32,7 @@
   const axios = function(config) {
     return new Promise((resolve) => {
       const xhr = new XMLHttpRequest()
-      xhr.open(config.method, location.pathname.replace(/\/doc.html$/,'') + config.url)
+      xhr.open(config.method, location.pathname.replace(/\/doc.html$/, '') + config.url)
       xhr.onload = (e) => {
         resolve({
           data: JSON.parse(xhr.responseText)
@@ -129,17 +129,13 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
         }
         for (const method in paths[path]) {
           const item = paths[path][method]
-          let dataRef = item.requestBody?.content['application/json'].schema['$ref'] || ''
-          if (dataRef) {
-            dataRef = dataRef.slice(dataRef.lastIndexOf('/') + 1)
-          }
           const params = []
           params.push(...(item.parameters?.filter((item) => {
-              return item.in === 'query'
+            return item.in === 'query'
           }) || []))
-          if(item.requestBody?.content['application/json']?.schema?.properties){
+          if (item.requestBody?.content['application/json']?.schema?.properties) {
             const properties = item.requestBody?.content['application/json']?.schema?.properties
-            params.push(...Object.keys(properties).map((key)=>{
+            params.push(...Object.keys(properties).map((key) => {
               return {
                 description: properties[key].description,
                 name: key,
@@ -151,6 +147,23 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
                 }
               }
             }))
+          }
+          const data = []
+          let dataRef = item.requestBody?.content['application/json'].schema['$ref'] || ''
+          if (!dataRef) {
+            dataRef = item.parameters?.find((item) => {
+              return item.in === 'body'
+            })?.schema?.['$ref']
+          }
+          if (dataRef) {
+            dataRef = dataRef.slice(dataRef.lastIndexOf('/') + 1)
+            data.push(...(schemas[dataRef] ? Object.keys(schemas[dataRef].properties).map((key) => {
+              return {
+                ...schemas[dataRef].properties[key],
+                required: schemas[dataRef].required?.includes(key) || false,
+                name: key
+              }
+            }) : []))
           }
           metas.push({
             moduleName: module.name,
@@ -164,13 +177,7 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
             }),
             method,
             dataRef,
-            data: schemas[dataRef] ? Object.keys(schemas[dataRef].properties).map((key) => {
-              return {
-                ...schemas[dataRef].properties[key],
-                required: schemas[dataRef].required?.includes(key) || false,
-                name: key
-              }
-            }) : [],
+            data,
             tags: item.tags
           })
         }
