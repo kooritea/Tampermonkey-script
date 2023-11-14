@@ -4,8 +4,8 @@
 // @version      0.1
 // @description  一键复制swagger文档代码
 // @author       You
-// @match        https://*/doc.html
-// @match        http://*/doc.html
+// @match        https://*/*doc.html
+// @match        http://*/*doc.html
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=16.93
 // @grant        GM_setClipboard
 // ==/UserScript==
@@ -32,7 +32,7 @@
   const axios = function(config) {
     return new Promise((resolve) => {
       const xhr = new XMLHttpRequest()
-      xhr.open(config.method, config.url)
+      xhr.open(config.method, location.pathname.replace(/\/doc.html$/,'') + config.url)
       xhr.onload = (e) => {
         resolve({
           data: JSON.parse(xhr.responseText)
@@ -88,7 +88,7 @@
     let paramsComment = ''
     if (Array.isArray(meta.params) && meta.params.length > 0 && meta.params.length < 5) {
       for (const param of meta.params) {
-        paramsComment += `\n  * ${param.required ? '@required ' : ''}@param {${param.schema.type}} params.${param.name} - ${param.description}`
+        paramsComment += `\n  * ${param.required ? '@required ' : ''}@param {${param.type || param.schema.type}} params.${param.name} - ${param.description}`
       }
     }
     let bodyComment = ''
@@ -120,8 +120,8 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
       url: module.url,
       method: 'get'
     }).then((res) => {
-      const { components, paths } = res.data
-      const { schemas } = components
+      const { components = {}, definitions = {}, paths } = res.data
+      const schemas = components.components || definitions
       for (const path in paths) {
         let _path = path
         if (Config.deletePrefix) {
@@ -133,6 +133,25 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
           if (dataRef) {
             dataRef = dataRef.slice(dataRef.lastIndexOf('/') + 1)
           }
+          const params = []
+          params.push(...(item.parameters?.filter((item) => {
+              return item.in === 'query'
+          }) || []))
+          if(item.requestBody?.content['application/json']?.schema?.properties){
+            const properties = item.requestBody?.content['application/json']?.schema?.properties
+            params.push(...Object.keys(properties).map((key)=>{
+              return {
+                description: properties[key].description,
+                name: key,
+                in: 'query',
+                required: properties[key].required ?? false,
+                schema: {
+                  description: properties[key].description,
+                  type: properties[key].type
+                }
+              }
+            }))
+          }
           metas.push({
             moduleName: module.name,
             operationId: item.operationId,
@@ -140,8 +159,8 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
             path: useTranHandler('path', _path),
             name: item.summary,
             comment: item.description,
-            params: item.parameters?.filter((item) => {
-              return item.in === 'query'
+            params: params.filter((item) => {
+              return item
             }),
             method,
             dataRef,
