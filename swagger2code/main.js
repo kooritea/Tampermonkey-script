@@ -121,7 +121,7 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
       method: 'get'
     }).then((res) => {
       const { components = {}, definitions = {}, paths } = res.data
-      const schemas = components.components || definitions
+      const schemas = components.schemas || definitions
       for (const path in paths) {
         let _path = path
         if (Config.deletePrefix) {
