@@ -149,7 +149,7 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
             }))
           }
           const data = []
-          let dataRef = item.requestBody?.content['application/json'].schema['$ref'] || ''
+          let dataRef = item.requestBody?.content['application/json'].schema['$ref'] || item.requestBody?.content['application/json']?.schema?.items?.['$ref'] || ''
           if (!dataRef) {
             dataRef = item.parameters?.find((item) => {
               return item.in === 'body'
