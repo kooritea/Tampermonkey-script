@@ -43,6 +43,7 @@
   }
 
   function pathToApiName(path) {
+    path = path.replace(/\/{(.*?)}/g, '/$1')
     let result = ''
     let needUpperCase = false
     for (const char of path) {
@@ -57,6 +58,10 @@
     return result
   }
 
+  function pathToParamsPath(path){
+    return path.replace(/\/{(.*?)}/g, '/${pathParams.$1}')
+  }
+
   const fileTemplate = `/**
   * 该文件自动生成，勿手动修改(修改了也会被覆盖
   */
@@ -65,6 +70,9 @@
 `
   const functionCodeGener = function(meta) {
     const functionParams = []
+    if (Array.isArray(meta.pathParams) && meta.pathParams.length > 0) {
+      functionParams.push('pathParams')
+    }
     if (Array.isArray(meta.params) && meta.params.length > 0) {
       functionParams.push('params')
     }
@@ -85,6 +93,13 @@
       comment += '\n  * ' + meta.tags.join('、')
     }
 
+    let pathParamsComment = ''
+    if (Array.isArray(meta.pathParams) && meta.pathParams.length > 0 && meta.pathParams.length < 5) {
+      for (const param of meta.pathParams) {
+        pathParamsComment += `\n  * ${param.required ? '@required ' : ''}@param {${param.type || param.schema.type}} pathParams.${param.name} - ${param.description}`
+      }
+    }
+
     let paramsComment = ''
     if (Array.isArray(meta.params) && meta.params.length > 0 && meta.params.length < 5) {
       for (const param of meta.params) {
@@ -103,12 +118,12 @@
     }
     const link = `\n  * @link ${location.origin}${location.pathname}#/${meta.moduleName}/${meta.tags ? (meta.tags[0] + '/') : ''}${meta.operationId}`
     return `
-/**${comment}${paramsComment}${bodyComment}${link}
+/**${comment}${pathParamsComment}${paramsComment}${bodyComment}${link}
   */
 export function ${meta.apiName}(${functionParams.join(', ')}) {
   return request({
     method: '${meta.method}',
-    url: '${meta.path}'${meta.requestType ? ',\n    requestType: \'' + meta.requestType + '\'' : ''}${functionParams.includes('params') ? ',\n    params' : ''}${functionParams.includes('data') || functionParams.includes('formData') ? ',\n    data' + (functionParams.includes('formData') ? ': formData' : '') : ''}
+    url: \`${meta.path}\`${meta.requestType ? ',\n    requestType: \'' + meta.requestType + '\'' : ''}${functionParams.includes('params') ? ',\n    params' : ''}${functionParams.includes('data') || functionParams.includes('formData') ? ',\n    data' + (functionParams.includes('formData') ? ': formData' : '') : ''}
   })
 }
 `
@@ -132,6 +147,10 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
           const params = []
           params.push(...(item.parameters?.filter((item) => {
             return item.in === 'query'
+          }) || []))
+          const pathParams = []
+          pathParams.push(...(item.parameters?.filter((item) => {
+            return item.in === 'path'
           }) || []))
           if (item.requestBody?.content['application/json']?.schema?.properties) {
             const properties = item.requestBody?.content['application/json']?.schema?.properties
@@ -169,10 +188,13 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
             moduleName: module.name,
             operationId: item.operationId,
             apiName: useTranHandler('name', pathToApiName(_path)),
-            path: useTranHandler('path', _path),
+            path: useTranHandler('path', pathToParamsPath(_path)),
             name: item.summary,
             comment: item.description,
             params: params.filter((item) => {
+              return item
+            }),
+            pathParams: pathParams.filter((item) => {
               return item
             }),
             method,
