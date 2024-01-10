@@ -143,6 +143,7 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
           _path = _path.replace(Config.deletePrefix, '')
         }
         for (const method in paths[path]) {
+          let requestType
           const item = paths[path][method]
           const params = []
           params.push(...(item.parameters?.filter((item) => {
@@ -184,6 +185,13 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
               }
             }) : []))
           }
+          const formData = []
+          for (const formDataItem of (item.parameters?.filter((item) => {
+            return item.in === 'formData'
+          }) || [])) {
+            formData.push(formDataItem)
+            requestType = 'formData'
+          }
           metas.push({
             moduleName: module.name,
             operationId: item.operationId,
@@ -200,6 +208,8 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
             method,
             dataRef,
             data,
+            formData,
+            requestType,
             tags: item.tags
           })
         }
