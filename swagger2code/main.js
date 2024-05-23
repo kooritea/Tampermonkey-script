@@ -42,6 +42,12 @@
     })
   }
 
+  function typeFormatter(type) {
+    return {
+      'integer': 'number'
+    }[type] || type
+  }
+
   function pathToApiName(path) {
     path = path.replace(/\/{(.*?)}/g, '/$1')
     let result = ''
@@ -58,8 +64,29 @@
     return result
   }
 
-  function pathToParamsPath(path){
+  function pathToParamsPath(path) {
     return path.replace(/\/{(.*?)}/g, '/${pathParams.$1}')
+  }
+
+  function createResponseInterfaceTemplate(interfaceMeta, schemas) {
+    // if (!interfaceMeta.properties.data.originalRef) {
+    //   console.log(interfaceMeta)
+    //   return {}
+    // }
+    const rootType = interfaceMeta.properties.data.type
+    const { properties, title } = rootType === 'array' ? schemas[interfaceMeta.properties.data.items.originalRef] : schemas[interfaceMeta.properties.data.originalRef]
+    let property = ''
+    for (const key in properties) {
+      property += `\n  * @property {${typeFormatter(properties[key].type)}} ${key} - ${properties[key].description}`
+    }
+    const _title = title.replaceAll(/-/g, '_')
+    return {
+      type: rootType,
+      name: _title,
+      template: `\n/**
+  * @typedef {Object} ${_title}${property}
+  */`
+    }
   }
 
   const fileTemplate = `/**
@@ -69,6 +96,7 @@
   import request from '@/utils/request'
 `
   const functionCodeGener = function(meta) {
+    let interfaceComment = ``
     const functionParams = []
     if (Array.isArray(meta.pathParams) && meta.pathParams.length > 0) {
       functionParams.push('pathParams')
@@ -103,7 +131,7 @@
     let paramsComment = ''
     if (Array.isArray(meta.params) && meta.params.length > 0 && meta.params.length < 5) {
       for (const param of meta.params) {
-        paramsComment += `\n  * ${param.required ? '@required ' : ''}@param {${param.type || param.schema.type}} params.${param.name} - ${param.description}`
+        paramsComment += `\n  * ${param.required ? '@required ' : ''}@param {${param.type || param.schema?.type || param.items?.additionalProperties?.type}} params.${param.name} - ${param.description}`
       }
     }
     let bodyComment = ''
@@ -116,9 +144,21 @@
         bodyComment += `\n  * @param {${meta.dataRef}} data`
       }
     }
+    let returnComment = ''
+    if (meta.response) {
+      const { type, template, name } = createResponseInterfaceTemplate(meta.response, meta.schemas)
+      if (template) {
+        if (type === 'array') {
+          returnComment = `\n  * @return {Promise<Array<${name}>>}`
+        } else {
+          returnComment = `\n  * @return {Promise<${name}>}`
+        }
+        interfaceComment += template
+      }
+    }
     const link = `\n  * @link ${location.origin}${location.pathname}#/${meta.moduleName}/${meta.tags ? (meta.tags[0] + '/') : ''}${meta.operationId}`
-    return `
-/**${comment}${pathParamsComment}${paramsComment}${bodyComment}${link}
+    return `${interfaceComment}
+/**${comment}${pathParamsComment}${paramsComment}${bodyComment}${link}${returnComment}
   */
 export function ${meta.apiName}(${functionParams.join(', ')}) {
   return request({
@@ -192,6 +232,9 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
             formData.push(formDataItem)
             requestType = 'formData'
           }
+
+          const response = schemas[item.responses['200'].schema.originalRef]
+
           metas.push({
             moduleName: module.name,
             operationId: item.operationId,
@@ -210,7 +253,9 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
             data,
             formData,
             requestType,
-            tags: item.tags
+            tags: item.tags,
+            schemas,
+            response
           })
         }
       }
