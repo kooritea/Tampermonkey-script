@@ -69,23 +69,50 @@
   }
 
   function createResponseInterfaceTemplate(interfaceMeta, schemas) {
-    // if (!interfaceMeta.properties.data.originalRef) {
-    //   console.log(interfaceMeta)
-    //   return {}
-    // }
-    const rootType = interfaceMeta.properties.data.type
-    const { properties, title } = rootType === 'array' ? schemas[interfaceMeta.properties.data.items.originalRef] : schemas[interfaceMeta.properties.data.originalRef]
-    let property = ''
-    for (const key in properties) {
-      property += `\n  * @property {${typeFormatter(properties[key].type)}} ${key} - ${properties[key].description}`
-    }
-    const _title = title.replaceAll(/-/g, '_')
-    return {
-      type: rootType,
-      name: _title,
-      template: `\n/**
+    const rootType = interfaceMeta.type
+    if (rootType === 'array') {
+      const son = createResponseInterfaceTemplate(schemas[interfaceMeta.items.originalRef], schemas)
+      return {
+        type: rootType,
+        name: interfaceMeta.items.originalRef,
+        template: son.template
+      }
+    } else {
+      let sonTemplate = ''
+      const { properties, title } = interfaceMeta.originalRef ? schemas[interfaceMeta.originalRef] : {
+        properties: interfaceMeta.properties,
+        title: interfaceMeta.title
+      }
+      let property = ''
+      for (const key in properties) {
+        if (typeFormatter(properties[key].type) === 'object') {
+          property += `\n  * @property {${typeFormatter(properties[key].type)}} ${key} - ${properties[key].description || '无描述'}`
+          continue
+        }
+        if (typeFormatter(properties[key].type) === 'array') {
+          const originalRef = properties[key].items.originalRef
+          const son = createResponseInterfaceTemplate(schemas[originalRef], schemas)
+          property += `\n  * @property {Array<${son.name}>} ${key} - ${properties[key].description || '无描述'}`
+          sonTemplate += son.template
+          continue
+        }
+        if (properties[key].originalRef) {
+          const originalRef = properties[key].originalRef
+          const son = createResponseInterfaceTemplate(schemas[originalRef], schemas)
+          property += `\n  * @property {${son.name}} ${key} - ${properties[key].description || '无描述'}`
+          sonTemplate += son.template
+          continue
+        }
+        property += `\n  * @property {${typeFormatter(properties[key].type)}} ${key} - ${properties[key].description || '无描述'}`
+      }
+      const _title = title.replaceAll(/-/g, '_')
+      return {
+        type: rootType,
+        name: _title,
+        template: `${sonTemplate}\n/**
   * @typedef {Object} ${_title}${property}
   */`
+      }
     }
   }
 
@@ -146,7 +173,7 @@
     }
     let returnComment = ''
     if (meta.response) {
-      const { type, template, name } = createResponseInterfaceTemplate(meta.response, meta.schemas)
+      const { type, template, name } = createResponseInterfaceTemplate(meta.response.properties.data, meta.schemas)
       if (template) {
         if (type === 'array') {
           returnComment = `\n  * @return {Promise<Array<${name}>>}`
