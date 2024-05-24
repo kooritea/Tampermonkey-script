@@ -86,26 +86,31 @@
       let property = ''
       for (const key in properties) {
         if (typeFormatter(properties[key].type) === 'object') {
-          property += `\n  * @property {${typeFormatter(properties[key].type)}} ${key} - ${properties[key].description || '无描述'}`
+          property += `\n  * @property {${typeFormatter(properties[key].type)}} ${key}${properties[key].description ? ' - ' : ''}${properties[key].description || ''}`
           continue
         }
         if (typeFormatter(properties[key].type) === 'array') {
           const originalRef = properties[key].items.originalRef
-          const son = createResponseInterfaceTemplate(schemas[originalRef], schemas)
-          property += `\n  * @property {Array<${son.name}>} ${key} - ${properties[key].description || '无描述'}`
-          sonTemplate += son.template
-          continue
+          if (originalRef) {
+            const son = createResponseInterfaceTemplate(schemas[originalRef], schemas)
+            property += `\n  * @property {Array<${son.name}>} ${key}${properties[key].description ? ' - ' : ''}${properties[key].description || ''}`
+            sonTemplate += son.template
+            continue
+          } else {
+            property += `\n  * @property {Array<${properties[key].items.type}>} ${key}${properties[key].description ? ' - ' : ''}${properties[key].description || ''}`
+            continue
+          }
         }
         if (properties[key].originalRef) {
           const originalRef = properties[key].originalRef
           const son = createResponseInterfaceTemplate(schemas[originalRef], schemas)
-          property += `\n  * @property {${son.name}} ${key} - ${properties[key].description || '无描述'}`
+          property += `\n  * @property {${son.name}} ${key}${properties[key].description ? ' - ' : ''}${properties[key].description || ''}`
           sonTemplate += son.template
           continue
         }
-        property += `\n  * @property {${typeFormatter(properties[key].type)}} ${key} - ${properties[key].description || '无描述'}`
+        property += `\n  * @property {${typeFormatter(properties[key].type)}} ${key}${properties[key].description ? ' - ' : ''}${properties[key].description || ''}`
       }
-      const _title = title.replaceAll(/-/g, '_')
+      const _title = title.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '_')
       return {
         type: rootType,
         name: _title,
@@ -151,24 +156,26 @@
     let pathParamsComment = ''
     if (Array.isArray(meta.pathParams) && meta.pathParams.length > 0 && meta.pathParams.length < 5) {
       for (const param of meta.pathParams) {
-        pathParamsComment += `\n  * ${param.required ? '@required ' : ''}@param {${param.type || param.schema.type}} pathParams.${param.name} - ${param.description}`
+        pathParamsComment += `\n  * ${param.required ? '@required ' : ''}@param {${param.type || param.schema.type}} pathParams.${param.name}${param.description ? ' - ' : ''}${param.description || ''}`
       }
     }
 
     let paramsComment = ''
     if (Array.isArray(meta.params) && meta.params.length > 0 && meta.params.length < 5) {
       for (const param of meta.params) {
-        paramsComment += `\n  * ${param.required ? '@required ' : ''}@param {${param.type || param.schema?.type || param.items?.additionalProperties?.type}} params.${param.name} - ${param.description}`
+        paramsComment += `\n  * ${param.required ? '@required ' : ''}@param {${param.type || param.schema?.type || param.items?.additionalProperties?.type}} params.${param.name}${param.description ? ' - ' : ''}${param.description || ''}`
       }
     }
+
     let bodyComment = ''
     if (Array.isArray(meta.data) && meta.data.length > 0) {
+      const { template, name } = createResponseInterfaceTemplate({ originalRef: meta.dataRef }, meta.schemas)
+      bodyComment += `\n  * @param {${name}} data`
+      interfaceComment += template
       if (meta.data.length < 5) {
         for (const item of meta.data) {
-          bodyComment += `\n  * ${item.required ? '@required ' : ''}@param {${item.type}} data.${item.name} - ${item.description}`
+          bodyComment += `\n  * ${item.required ? '@required ' : ''}@param {${item.type}} data.${item.name}${item.description ? ' - ' : ''}${item.description || ''}`
         }
-      } else {
-        bodyComment += `\n  * @param {${meta.dataRef}} data`
       }
     }
     let returnComment = ''
