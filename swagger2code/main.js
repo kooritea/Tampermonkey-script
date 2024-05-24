@@ -68,13 +68,25 @@
     return path.replace(/\/{(.*?)}/g, '/${pathParams.$1}')
   }
 
-  function createResponseInterfaceTemplate(interfaceMeta, schemas) {
+  function createResponseInterfaceTemplate(interfaceMeta, schemas, interfaceNameSet) {
     const rootType = interfaceMeta.type
     if (rootType === 'array') {
-      const son = createResponseInterfaceTemplate(schemas[interfaceMeta.items.originalRef], schemas)
+      let son = interfaceNameSet.find((item) => {
+        return item.originalRef === interfaceMeta.items.originalRef
+      })
+      if (!son) {
+        const tmp = {
+          originalRef: interfaceMeta.items.originalRef,
+          name: interfaceMeta.items.originalRef.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '_')
+        }
+        interfaceNameSet.push(tmp)
+        son = son = createResponseInterfaceTemplate(schemas[interfaceMeta.items.originalRef], schemas, interfaceNameSet)
+        Object.assign(tmp, son)
+      }
       return {
         type: rootType,
-        name: interfaceMeta.items.originalRef,
+        name: son.name,
+        originalRef: interfaceMeta.items.originalRef,
         template: son.template
       }
     } else {
@@ -92,9 +104,20 @@
         if (typeFormatter(properties[key].type) === 'array') {
           const originalRef = properties[key].items.originalRef
           if (originalRef) {
-            const son = createResponseInterfaceTemplate(schemas[originalRef], schemas)
+            let son = interfaceNameSet.find((item) => {
+              return item.originalRef === originalRef
+            })
+            if (!son) {
+              const tmp = {
+                originalRef,
+                name: originalRef.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '_')
+              }
+              interfaceNameSet.push(tmp)
+              son = createResponseInterfaceTemplate(schemas[originalRef], schemas, interfaceNameSet)
+              Object.assign(tmp, son)
+            }
             property += `\n  * @property {Array<${son.name}>} ${key}${properties[key].description ? ' - ' : ''}${properties[key].description || ''}`
-            sonTemplate += son.template
+            sonTemplate += son.template || ''
             continue
           } else {
             property += `\n  * @property {Array<${properties[key].items.type}>} ${key}${properties[key].description ? ' - ' : ''}${properties[key].description || ''}`
@@ -103,9 +126,20 @@
         }
         if (properties[key].originalRef) {
           const originalRef = properties[key].originalRef
-          const son = createResponseInterfaceTemplate(schemas[originalRef], schemas)
+          let son = interfaceNameSet.find((item) => {
+            return item.originalRef === originalRef
+          })
+          if (!son) {
+            const tmp = {
+              originalRef,
+              name: originalRef.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '_')
+            }
+            interfaceNameSet.push(tmp)
+            son = createResponseInterfaceTemplate(schemas[originalRef], schemas, interfaceNameSet)
+            Object.assign(tmp, son)
+          }
           property += `\n  * @property {${son.name}} ${key}${properties[key].description ? ' - ' : ''}${properties[key].description || ''}`
-          sonTemplate += son.template
+          sonTemplate += son.template || ''
           continue
         }
         property += `\n  * @property {${typeFormatter(properties[key].type)}} ${key}${properties[key].description ? ' - ' : ''}${properties[key].description || ''}`
@@ -127,7 +161,7 @@
 
   import request from '@/utils/request'
 `
-  const functionCodeGener = function(meta) {
+  const functionCodeGener = function(meta, interfaceNameSet) {
     let interfaceComment = ``
     const functionParams = []
     if (Array.isArray(meta.pathParams) && meta.pathParams.length > 0) {
@@ -169,7 +203,7 @@
 
     let bodyComment = ''
     if (Array.isArray(meta.data) && meta.data.length > 0) {
-      const { template, name } = createResponseInterfaceTemplate({ originalRef: meta.dataRef }, meta.schemas)
+      const { template, name } = createResponseInterfaceTemplate({ originalRef: meta.dataRef }, meta.schemas, interfaceNameSet)
       bodyComment += `\n  * @param {${name}} data`
       interfaceComment += template
       if (meta.data.length < 5) {
@@ -180,7 +214,7 @@
     }
     let returnComment = ''
     if (meta.response) {
-      const { type, template, name } = createResponseInterfaceTemplate(meta.response.properties.data, meta.schemas)
+      const { type, template, name } = createResponseInterfaceTemplate(meta.response.properties.data, meta.schemas, interfaceNameSet)
       if (template) {
         if (type === 'array') {
           returnComment = `\n  * @return {Promise<Array<${name}>>}`
@@ -294,8 +328,9 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
         }
       }
       let text = fileTemplate
+      const interfaceNameSet = []
       for (const meta of metas.sort((a, b) => { return a.path.localeCompare(b.path) })) {
-        text += functionCodeGener(meta)
+        text += functionCodeGener(meta, interfaceNameSet)
       }
       return text
     })
