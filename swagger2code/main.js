@@ -71,23 +71,31 @@
   function createResponseInterfaceTemplate(interfaceMeta, schemas, interfaceNameSet) {
     const rootType = interfaceMeta.type
     if (rootType === 'array') {
-      let son = interfaceNameSet.find((item) => {
-        return item.originalRef === interfaceMeta.items.originalRef
-      })
-      if (!son) {
-        const tmp = {
-          originalRef: interfaceMeta.items.originalRef,
-          name: interfaceMeta.items.originalRef.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '_')
+      if (interfaceMeta.items.originalRef) {
+        let son = interfaceNameSet.find((item) => {
+          return item.originalRef === interfaceMeta.items.originalRef
+        })
+        if (!son) {
+          const tmp = {
+            originalRef: interfaceMeta.items.originalRef,
+            name: interfaceMeta.items.originalRef.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '_')
+          }
+          interfaceNameSet.push(tmp)
+          son = createResponseInterfaceTemplate(schemas[interfaceMeta.items.originalRef], schemas, interfaceNameSet)
+          Object.assign(tmp, son)
         }
-        interfaceNameSet.push(tmp)
-        son = son = createResponseInterfaceTemplate(schemas[interfaceMeta.items.originalRef], schemas, interfaceNameSet)
-        Object.assign(tmp, son)
-      }
-      return {
-        type: rootType,
-        name: son.name,
-        originalRef: interfaceMeta.items.originalRef,
-        template: son.template
+        return {
+          type: rootType,
+          name: son.name,
+          originalRef: interfaceMeta.items.originalRef,
+          template: son.template
+        }
+      } else {
+        return {
+          type: rootType,
+          name: interfaceMeta.items.type,
+          template: ``
+        }
       }
     } else {
       let sonTemplate = ''
@@ -144,12 +152,12 @@
         }
         property += `\n  * @property {${typeFormatter(properties[key].type)}} ${key}${properties[key].description ? ' - ' : ''}${properties[key].description || ''}`
       }
-      const _title = title.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '_')
+      const _title = title?.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '_') || ''
       return {
         type: rootType,
         name: _title,
         template: `${sonTemplate}\n/**
-  * @typedef {Object} ${_title}${property}
+  * @typedef {Object}${_title ? (' ' + _title) : ''}${property}
   */`
       }
     }
