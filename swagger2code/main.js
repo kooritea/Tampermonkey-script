@@ -169,7 +169,7 @@
 
   import request from '@/utils/request'
 `
-  const functionCodeGener = function(meta, interfaceNameSet) {
+  const functionCodeGener = function(meta, interfaceNameSet, apiNameSet) {
     let interfaceComment = ``
     const functionParams = []
     if (Array.isArray(meta.pathParams) && meta.pathParams.length > 0) {
@@ -233,10 +233,12 @@
       }
     }
     const link = `\n  * @link ${location.origin}${location.pathname}#/${meta.moduleName}/${meta.tags ? (meta.tags[0] + '/') : ''}${meta.operationId}`
+    const apiName = apiNameSet.includes(meta.apiName) ? `${meta.apiName}_${meta.method}` : meta.apiName
+    apiNameSet.push(apiName)
     return `${interfaceComment}
 /**${comment}${pathParamsComment}${paramsComment}${bodyComment}${link}${returnComment}
   */
-export function ${meta.apiName}(${functionParams.join(', ')}) {
+export function ${apiName}(${functionParams.join(', ')}) {
   return request({
     method: '${meta.method}',
     url: \`${meta.path}\`${meta.requestType ? ',\n    requestType: \'' + meta.requestType + '\'' : ''}${functionParams.includes('params') ? ',\n    params' : ''}${functionParams.includes('data') || functionParams.includes('formData') ? ',\n    data' + (functionParams.includes('formData') ? ': formData' : '') : ''}
@@ -309,7 +311,7 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
             requestType = 'formData'
           }
 
-          const response = schemas[item.responses['200'].schema.originalRef]
+          const response = schemas[item.responses['200'].schema?.originalRef]
 
           metas.push({
             moduleName: module.name,
@@ -337,8 +339,9 @@ export function ${meta.apiName}(${functionParams.join(', ')}) {
       }
       let text = fileTemplate
       const interfaceNameSet = []
+      const apiNameSet = []
       for (const meta of metas.sort((a, b) => { return a.path.localeCompare(b.path) })) {
-        text += functionCodeGener(meta, interfaceNameSet)
+        text += functionCodeGener(meta, interfaceNameSet, apiNameSet)
       }
       return text
     })
