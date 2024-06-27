@@ -163,11 +163,7 @@
     }
   }
 
-  const fileTemplate = `/**
-  * 该文件自动生成，勿手动修改(修改了也会被覆盖
-  */
-
-  import request from '@/utils/request'
+  const fileTemplate = `import request from '@/utils/request'
 `
   const functionCodeGener = function(meta, interfaceNameSet, apiNameSet) {
     let interfaceComment = ``
